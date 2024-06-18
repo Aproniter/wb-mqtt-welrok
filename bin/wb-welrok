@@ -1,0 +1,8 @@
+#!/opt/venvs/wb-welrok/bin/python3
+# pylint: disable=invalid-name
+
+import sys
+
+from wb_welrok.main import main
+
+sys.exit(main(sys.argv))

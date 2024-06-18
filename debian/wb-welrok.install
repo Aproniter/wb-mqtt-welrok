@@ -1,0 +1,4 @@
+bin/wb-welrok /usr/bin
+wb-mqtt-welrok.schema.json /usr/share/wb-mqtt-confed/schemas
+wb-welrok.conf /etc
+21wb-mqtt-welrok /etc/wb-configs.d

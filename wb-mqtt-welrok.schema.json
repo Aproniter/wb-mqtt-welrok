@@ -1,0 +1,142 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "title": "Welrok thermostat settings",
+    "configFile": {
+      "path": "/etc/wb-welrok.conf",
+      "service": "wb-welrok",
+      "toJSON": ["wb-welrok", "-j"],
+      "validate": false
+    },
+    "definitions": {
+        "device": {
+            "type": "object",
+            "title": "Device",
+            "headerTemplate": "{{self.device_title}}",
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "title": "WB MQTT id of the device",
+                    "default": "",
+                    "description": "The ID will be used to create a branch in Wiren Board MQTT /devices/{ID}/",
+                    "propertyOrder": 1
+                },
+                "device_title": {
+                    "type": "string",
+                    "title": "Device name",
+                    "default": "",
+                    "description": "Displayed device name in the Wiren Board panel",
+                    "propertyOrder": 2
+                },
+                "device_ip": {
+                    "type": "string",
+                    "title": "Thermostat API IP address",
+                    "default": "",
+                    "description": "IP address of Welrok thermostat",
+                    "propertyOrder": 3,
+                    "format": "ipv4"
+                },
+                "inner_mqtt_client_id": {
+                    "type": "string",
+                    "title": "Internal mqtt client_id",
+                    "default": "",
+                    "description": "Id specified on the Welrok thermostat in the Client ID field",
+                    "propertyOrder": 4
+                },
+                "inner_mqtt_pubprefix": {
+                    "type": "string",
+                    "title": "Internal mqtt pubprefix",
+                    "default": "",
+                    "description": "Topic specified on the Welrok thermostat in the Publish prefix field",
+                    "propertyOrder": 5
+                },
+                "inner_mqtt_subprefix": {
+                    "type": "string",
+                    "title": "Internal mqtt subprefix",
+                    "default": "",
+                    "description": "Topic specified on the Welrok thermostat in the Subscribe path field",
+                    "propertyOrder": 6
+                },
+                "serial_number": {
+                    "type": "string",
+                    "title": "Thermostat serial number",
+                    "default": "",
+                    "description": "Required for local thermostat control",
+                    "propertyOrder": 7
+                }
+            },
+            "required": [
+              "device_id",
+              "device_title",
+              "device_ip",
+              "inner_mqtt_client_id",
+              "inner_mqtt_pubprefix",
+              "inner_mqtt_subprefix",
+              "serial_number"
+            ],
+            "options": {
+                "disable_edit_json": true,
+                "disable_collapse": true,
+                "disable_properties": true
+            }
+        }
+    },
+    "properties": {
+        "devices": {
+            "type": "array",
+            "title": "Welrok Thermostat",
+            "items": { "$ref": "#/definitions/device"},
+            "options": {
+                "array_controls_top": true,
+                "disable_array_delete_last_row": true,
+                "disable_array_reorder": true,
+                "disable_collapse": true,
+                "enable_array_copy": true,
+                "disable_edit_json": true
+            },
+            "_format": "tabs",
+            "propertyOrder": 1
+        },
+        "debug": {
+            "type": "boolean",
+            "title": "Enable debug logging",
+            "default": false,
+            "_format": "checkbox",
+            "propertyOrder": 2
+        }
+    },
+    "required": [
+        "devices",
+        "debug"
+    ],
+    "options": {
+        "disable_edit_json": true,
+        "disable_collapse": true,
+        "disable_properties": true
+    },
+    "translations": {
+        "ru": {
+            "Welrok Receivers": "Термостаты Welrok",
+            "Device": "Устройство",
+            "Welrok thermostat settings": "Настройка термостатов Welrok",
+            "Enable debug logging": "Режим отладки",
+            "WB MQTT id of the device": "Идентификатор устройства в MQTT WB",
+            "Device name": "Название устройства",
+            "Thermostat API IP address": "IP-адрес API термостата",
+            "Internal mqtt client_id": "Внутренний mqtt client_id",
+            "Internal mqtt pubprefix": "Внутренний префикс публикации mqtt",
+            "Internal mqtt subprefix": "Внутренний префикс подписки mqtt",
+            "Thermostat serial number": "Серийный номер термостата",
+            "Names of thermostat data topics": "Названия топиков данных термостата",
+            "Names of thermostat control topics": "Названия топиков управления термостатом",
+            "Control via internal mqtt": "Управление через внутренний mqtt",
+            "Required for local thermostat control": "Необходим для локального управления термостатом",
+            "The ID will be used to create a branch in Wiren Board MQTT /devices/{ID}/":"ID будет использован для создания ветки в Wiren Board MQTT /devices/{ID}/",
+            "Displayed device name in the Wiren Board panel": "Отображаемое название устройства в панели Wiren Board",
+            "IP address of Welrok thermostat": "IP адрес терморегулятора Welrok",
+            "Id specified on the Welrok thermostat in the Client ID field": "Id заданный на терморегуляторе Welrok в поле Client ID",
+            "Topic specified on the Welrok thermostat in the Publish prefix field": "Топик заданный на терморегуляторе Welrok в поле Publish prefix",
+            "Topic specified on the Welrok thermostat in the Subscribe path field": "Топик заданный на терморегуляторе Welrok в поле Subscribe path"
+        }
+    }    
+}

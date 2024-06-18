@@ -1,0 +1,15 @@
+[Unit]
+Description=Wiren Board Welrok thermostat MQTT driver
+Wants=mosquitto.service
+After=network.target mosquitto.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+User=root
+ExecStart=/usr/bin/wb-welrok
+RestartPreventExitStatus=6
+
+[Install]
+WantedBy=multi-user.target

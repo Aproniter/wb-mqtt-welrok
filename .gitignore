@@ -1,0 +1,13 @@
+debian/files
+debian/wb-welrok
+debian/*.substvars
+debian/*.debhelper
+debian/debhelper-build-stamp
+.debhelper
+wb_welrok.egg-info/
+
+.DS_Store
+venv
+.venv
+doc_cmd
+Dockerfile
