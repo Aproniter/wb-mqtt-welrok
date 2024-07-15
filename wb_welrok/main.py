@@ -48,21 +48,21 @@ class MQTTDevice:
         start_bright = str(int(self._device_state['bright']) * 10) if int(self._device_state['bright']) != 9 else '100'
         self._device.create_control(
             "Bright",
-            wbmqtt.ControlMeta(title="Яркость дисплея, %", title_en="Bright (%)", control_type="range", order=2, read_only=False, max_value=100),
+            wbmqtt.ControlMeta(title="Яркость дисплея", title_en="Bright", units="%", control_type="range", order=2, read_only=False, max_value=100),
             start_bright,
         )
         self._device.add_control_message_callback("Bright", self._on_message_bright)
 
         self._device.create_control(
             "Set temperature",
-            wbmqtt.ControlMeta(title="Уставка, (°С)", title_en="Set floor temperature (°С)", control_type="range", order=3, read_only=False, min_value=5, max_value=45),
+            wbmqtt.ControlMeta(title="Уставка", title_en="Set floor temperature", units="deg C", control_type="range", order=3, read_only=False, min_value=5, max_value=45),
             self._device_state['setTemp'],
         )
         self._device.add_control_message_callback("Set temperature", self._on_message_temperature)
 
         self._device.create_control(
             'Current mode',
-            wbmqtt.ControlMeta(title='Ткущий режим работы', title_en="Current mode", control_type="text", order=4, read_only=True),
+            wbmqtt.ControlMeta(title='Текущий режим работы', title_en="Current mode", control_type="text", order=4, read_only=True),
             self._device_state['mode']
         )
 
@@ -74,7 +74,7 @@ class MQTTDevice:
 
         self._device.create_control(
             "Set temperature value",
-            wbmqtt.ControlMeta(title="Уставка, °С", title_en="Set floor temperature", control_type="temperature", order=6, read_only=False, min_value=5, max_value=45),
+            wbmqtt.ControlMeta(title="Уставка", title_en="Set floor temperature", control_type="temperature", order=6, read_only=False, min_value=5, max_value=45),
             self._device_state['setTemp'],
         )
         self._device.add_control_message_callback("Set temperature value", self._on_message_temperature_value)

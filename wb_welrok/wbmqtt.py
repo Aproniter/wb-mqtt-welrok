@@ -9,6 +9,7 @@ class ControlMeta:  # pylint: disable=R0903,disable=R0913
         self,
         title: str = None,
         title_en: str = None,
+        units: str = None,
         control_type: str = "value",
         order: int = None,
         read_only: bool = False,
@@ -18,6 +19,7 @@ class ControlMeta:  # pylint: disable=R0903,disable=R0913
     ) -> None:
         self.title = title
         self.title_en = title_en
+        self.units = units
         self.control_type = control_type
         self.order = order
         self.read_only = read_only
@@ -117,6 +119,8 @@ class Device:
             meta_dict["title"].update({"ru": meta.title})
         if meta.title_en is not None:
             meta_dict["title"].update({"en": meta.title_en})
+        if meta.units is not None:
+            meta_dict["title"].update({"units": meta.units})
         for key in ("min", "max", "order", "error"):
             if getattr(meta, key) is not None:
                 meta_dict[key] = getattr(meta, key)

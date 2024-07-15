@@ -1,3 +1,9 @@
+wb-welrok (0.0.7) UNRELEASED; urgency=low
+
+  * wb-welrok: Units of measurement moved to the "units" key of the meta
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Mon, 15 Jul 2024 13:19:23 +0300
+
 wb-welrok (0.0.6) UNRELEASED; urgency=low
 
   * builddeb-fixups: add py2-minimal dependency; remove executable bit from .install
