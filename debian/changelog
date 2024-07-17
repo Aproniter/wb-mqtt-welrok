@@ -1,3 +1,9 @@
+wb-welrok (0.0.8) UNRELEASED; urgency=low
+
+  * wb-welrok: Fix descriptions mistake
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Mon, 17 Jul 2024 11:27:13 +0300
+
 wb-welrok (0.0.7) UNRELEASED; urgency=low
 
   * wb-welrok: Units of measurement moved to the "units" key of the meta

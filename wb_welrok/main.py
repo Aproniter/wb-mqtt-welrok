@@ -48,7 +48,7 @@ class MQTTDevice:
         start_bright = str(int(self._device_state['bright']) * 10) if int(self._device_state['bright']) != 9 else '100'
         self._device.create_control(
             "Bright",
-            wbmqtt.ControlMeta(title="Яркость дисплея", title_en="Bright", units="%", control_type="range", order=2, read_only=False, max_value=100),
+            wbmqtt.ControlMeta(title="Яркость дисплея", title_en="Display Brightness", units="%", control_type="range", order=2, read_only=False, max_value=100),
             start_bright,
         )
         self._device.add_control_message_callback("Bright", self._on_message_bright)
