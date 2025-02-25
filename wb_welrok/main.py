@@ -4,6 +4,7 @@ import logging
 import signal
 import sys
 import asyncio
+import traceback
 import aiohttp # type: ignore
 import jsonschema # type: ignore
 
@@ -26,6 +27,12 @@ class MQTTDevice:
         self._device_state = device_state
         self._loop = asyncio.get_running_loop()
         logger.debug("MQTT WB device created")
+
+    def __repr__(self):
+        return (f"MQTTDevice(client={self._client}, device={self._device}, "
+                f"welrok_device={self._welrok_device}, root_topic={self._root_topic}, "
+                f"device_state={self._device_state})")
+
 
     def set_welrok_device(self, welrok_device):
         self._welrok_device = welrok_device
@@ -152,15 +159,24 @@ class WelrokDevice:
         self._title = properties['device_title']
         self._sn = properties['serial_number']
         self._ip = properties['device_ip']
+        self._mqtt_server_uri = properties['mqtt_server_uri'] if properties['mqtt_server_uri'] else None
         self._url = f'http://{properties["device_ip"]}/api.cgi' if properties["device_ip"] else None
         self._wb_mqtt_device = None
-        self._mqtt = MQTTClient(properties['device_title'], DEFAULT_BROKER_URL)# if properties['mqtt_enable'] else None
+        self._mqtt = MQTTClient(properties['device_title'], properties['mqtt_server_uri'] or DEFAULT_BROKER_URL)
         self._mqtt_pub_base_topic = f'{properties["inner_mqtt_pubprefix"]}{properties["inner_mqtt_client_id"]}/set/'
         self._mqtt_sub_base_topic = f'{properties["inner_mqtt_subprefix"]}{properties["inner_mqtt_client_id"]}/get/'
         self._mqtt_data_topics = config.data_topics
         self._mqtt_settings_topics = config.settings_topics
 
         logger.debug("Add device with id " + self._id + " and sn " + self._sn)
+    
+    def __repr__(self):
+        return (f"WelrokDevice(id={self._id}, title={self._title}, "
+                f"serial_number={self._sn}, ip={self._ip}, url={self._url}, "
+                f"mqtt_pub_base_topic={self._mqtt_pub_base_topic}, "
+                f"mqtt_sub_base_topic={self._mqtt_sub_base_topic}, "
+                f"mqtt_data_topics={self._mqtt_data_topics}, "
+                f"mqtt_settings_topics={self._mqtt_settings_topics})")
 
     @property
     def id(self):  # pylint: disable=C0103
@@ -206,18 +222,39 @@ class WelrokDevice:
 
     def parse_device_params_state(self, data):
         state = {}
-        for par in data['par']:
-            if par[0] in config.PARAMS_CODES:
-                state.update({
-                    config.PARAMS_CODES[par[0]]: config.PARAMS_CHOISE[config.PARAMS_CODES[par[0]]](par[2])
-                })
-        return state
+        logger.debug(f'Parse device params state data: {data}')
+        try:
+            for par in data['par']:
+                if par[0] in config.PARAMS_CODES:
+                    state.update({
+                        config.PARAMS_CODES[par[0]]: config.PARAMS_CHOISE[config.PARAMS_CODES[par[0]]](par[2])
+                    })
+            logger.debug(f'Parse device params state "STATE": {state}')
+            return state
+        except Exception as e:
+            logger.debug(f'Error: {e}.\n{traceback.format_exc()}')
 
     async def get_device_state(self, cmd):
-        post_data = json.dumps({'cmd': cmd})
-        async with aiohttp.ClientSession() as session:
-            async with session.post(self._url, data=post_data) as resp:
-                return await resp.json()
+        try:
+            logger.debug("Start get_device_state")
+            post_data = json.dumps({'cmd': cmd})
+            logger.debug(f"Get_device_state post_data: {post_data}")
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self._url, data=post_data) as resp:
+                    status = resp.status
+                    logger.debug(f'Device state response status: {status}')
+                    try:
+                        response = await resp.json()
+                    except aiohttp.ContentTypeError:
+                        logger.debug('Response content is not in JSON format')
+                        return None
+
+                    logger.debug(f'Device state RAW Response: {resp}')
+                    logger.debug(f'Device state response: {response}')
+                    return response
+        except Exception as e:
+            logger.debug(f'Error: {e}.\n{traceback.format_exc()}')
+            return None
 
     async def set_current_state(self, current_temp):
         for key, value in current_temp.items():
@@ -352,19 +389,26 @@ class WelrokClient:
 
             for device_config in self.devices_config:
                 welrok_device = WelrokDevice(device_config)
+                logger.debug(f"Welrok_device: {welrok_device}")
                 if welrok_device._url:
-                    device_controls_state = welrok_device.parse_device_params_state(await welrok_device.get_device_state(config.CMD_CODES['params']))
-
+                    logger.debug("Device start parse params")
+                    logger.debug(f"CMD CODES: {config.CMD_CODES}")
+                    params_states = await welrok_device.get_device_state(config.CMD_CODES['params'])
+                    device_controls_state = welrok_device.parse_device_params_state(params_states)
+                    logger.debug(f"Device controls state: {device_controls_state}")
                     telemetry = await welrok_device.get_device_state(config.CMD_CODES['telemetry'])
-
+                    logger.debug(f"Telemetry: {telemetry}")
                     device_controls_state.update({
                         'read_only_temp': welrok_device.parse_temperature_response(telemetry),
                         'load': welrok_device.get_load(telemetry)
                     })
+                    logger.debug(f"Device controls state after update: {device_controls_state}")
                     mqtt_device = MQTTDevice(mqtt_client, device_controls_state)
+                    logger.debug(f"MQTTDevice: {mqtt_device}")
                     welrok_devices.append(asyncio.create_task(welrok_device.run()))
+                    logger.debug(f"Welrok devices list: {welrok_devices}")
                     mqtt_devices.append(mqtt_device)
-
+                    logger.debug(f"MQTTDevices list: {mqtt_devices}")
                     mqtt_device.set_welrok_device(welrok_device)
                     welrok_device.set_mqtt_device(mqtt_device)
                     mqtt_device.publicate()
@@ -378,6 +422,8 @@ class WelrokClient:
         except asyncio.CancelledError:
             logger.debug("Run welrok client task cancelled")
             return 0 if self.mqtt_client_running else 1
+        except Exception as e:
+            logger.debug(f'Error: {e}.\n{traceback.format_exc()}')
         finally:
 
             if self.mqtt_client_running:
