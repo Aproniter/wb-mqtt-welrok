@@ -23,7 +23,6 @@ class MQTTClient(paho_socket.Client):
 
     def start(self) -> None:
         scheme = self._broker_url.scheme
-        print(scheme)
 
         if self._broker_url.username:
             self.username_pw_set(self._broker_url.username, self._broker_url.password)
