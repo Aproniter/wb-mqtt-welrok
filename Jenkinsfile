@@ -1,1 +1,1 @@
-archiveProjectFiles()
+buildDebArchAll defaultRunPythonChecks: true
