@@ -103,22 +103,7 @@ class MQTTDevice:
             self._device_state["load"],
         )
 
-        self._device.create_control(
-            "Set temperature value",
-            wbmqtt.ControlMeta(
-                title="Установка",
-                title_en="Set floor temperature",
-                control_type="temperature",
-                order=6,
-                read_only=False,
-                min_value=5,
-                max_value=45,
-            ),
-            self._device_state["setTemp"],
-        )
-        self._device.add_control_message_callback("Set temperature value", self._on_message_temperature_value)
-
-        for order_number, mode_title in enumerate(config.MODE_CODES.values(), 7):
+        for order_number, mode_title in enumerate(config.MODE_CODES.values(), 6):
             self._device.create_control(
                 mode_title,
                 wbmqtt.ControlMeta(
@@ -218,22 +203,6 @@ class MQTTDevice:
         except RuntimeError:
             logger.warning("Cannot schedule temperature command, event loop closed")
 
-    def _on_message_temperature_value(self, _, __, msg):
-        try:
-            temp = int(msg.payload.decode("utf-8"))
-        except Exception:
-            logger.exception("Failed to decode temperature value payload")
-            return
-
-        try:
-            if self._loop.is_closed():
-                logger.warning("Event loop closed, ignoring temperature value command")
-                return
-            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_temp(temp), self._loop)
-            fut.add_done_callback(self._done)
-            logger.info("Set temperature %s on Welrok %s", temp, self._welrok_device.sn)
-        except RuntimeError:
-            logger.warning("Cannot schedule temperature value command, event loop closed")
 
     def _on_message_bright(self, _, __, msg):
         try:

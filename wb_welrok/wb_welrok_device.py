@@ -30,7 +30,7 @@ class WelrokDevice:
         self._title = properties.get("device_title", "unknown_title")
         self._sn = properties.get("serial_number", "unknown_sn")
         self._ip = properties.get("device_ip", "unknown_ip")
-        self._mqtt_enable = properties.get("mqtt_enable", False)
+        self._mqtt_enable = properties.get("mqtt_enable", True)
         self._mqtt_server_uri = properties.get("mqtt_server_uri", DEFAULT_BROKER_URL)
         self._url = (
             f"""http://{properties.get("device_ip")}/api.cgi""" if properties.get("device_ip") else None
@@ -325,7 +325,7 @@ class WelrokDevice:
                         if telemetry:
                             self._wb_mqtt_device.set_readonly("Load", self.get_load(telemetry))
                             await self.set_current_temp(self.parse_temperature_response(telemetry))
-                    await asyncio.sleep(30)
+                    await asyncio.sleep(10)
             except asyncio.CancelledError:
                 logger.debug("Welrok device %s run task cancelled", self._id)
                 break  # Exit on cancellation
@@ -353,10 +353,10 @@ class WelrokDevice:
         pass  # Sessions are now properly closed with async with
 
     def get_load(self, telemetry):
-        load = "off"
         if "f.0" in telemetry:
             load = config.PARAMS_CHOISE["load"](telemetry["f.0"])
-        return load
+            return load
+        return
 
     def mqtt_data_callback(self, _, __, msg):
         if self._wb_mqtt_device is None:
@@ -372,7 +372,7 @@ class WelrokDevice:
                 if topic_name[0] == "Power":
                     msg = "0" if msg == "1" else "1"
                 elif topic_name[0] == "Load":
-                    msg = "on" if msg == "1" else "off"
+                    msg = "Включено" if msg == "1" else "Выключено"
                 elif "temperature" in topic_name[0]:
                     if "open" not in msg and "Set " not in topic_name[0]:
                         if topic_name[0] != "Floor temperature":
