@@ -203,7 +203,6 @@ class MQTTDevice:
         except RuntimeError:
             logger.warning("Cannot schedule temperature command, event loop closed")
 
-
     def _on_message_bright(self, _, __, msg):
         try:
             bright = int(msg.payload.decode("utf-8"))
