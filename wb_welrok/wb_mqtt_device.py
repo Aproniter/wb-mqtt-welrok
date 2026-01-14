@@ -2,11 +2,9 @@ import asyncio
 import logging
 
 from wb_welrok import config, wbmqtt
-from wb_welrok.mqtt_client import DEFAULT_BROKER_URL, MQTTClient
+from wb_welrok.mqtt_client import MQTTClient
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s (%(filename)s:%(lineno)d)")
-logger.setLevel(logging.INFO)
 
 
 class MQTTDevice:
@@ -29,15 +27,25 @@ class MQTTDevice:
     def set_welrok_device(self, welrok_device):
         self._welrok_device = welrok_device
         self._root_topic = "/devices/" + self._welrok_device.title
-        logger.debug("Set Welrok device %s on %s topic", self._welrok_device.sn, self._root_topic)
+        logger.debug(
+            "Set Welrok device %s on %s topic", self._welrok_device.sn, self._root_topic
+        )
 
-    def publicate(self):
+    def publicate(self) -> None:
         self._device = wbmqtt.Device(
             mqtt_client=self._client,
             device_mqtt_name=self._welrok_device.id,
             device_title=self._welrok_device.title,
             driver_name="wb-mqtt-welrok",
         )
+        self._create_power_control()
+        self._create_bright_control()
+        self._create_temperature_control()
+        self._create_mode_controls()
+        self._create_readonly_controls()
+        logger.info(f"{self._root_topic} device created")
+
+    def _create_power_control(self) -> None:
         self._device.create_control(
             "Power",
             wbmqtt.ControlMeta(
@@ -47,13 +55,13 @@ class MQTTDevice:
                 order=1,
                 read_only=False,
             ),
-            self._device_state["powerOff"],
+            self._device_state.get("powerOff", 0),
         )
         self._device.add_control_message_callback("Power", self._on_message_power)
 
-        start_bright = (
-            str(int(self._device_state["bright"]) * 10) if int(self._device_state["bright"]) != 9 else "100"
-        )
+    def _create_bright_control(self) -> None:
+        bright_val = int(self._device_state.get("bright", 9))
+        start_bright = str(bright_val * 10) if bright_val != 9 else "100"
         self._device.create_control(
             "Bright",
             wbmqtt.ControlMeta(
@@ -69,6 +77,7 @@ class MQTTDevice:
         )
         self._device.add_control_message_callback("Bright", self._on_message_bright)
 
+    def _create_temperature_control(self) -> None:
         self._device.create_control(
             "Set temperature",
             wbmqtt.ControlMeta(
@@ -81,34 +90,19 @@ class MQTTDevice:
                 min_value=5,
                 max_value=45,
             ),
-            self._device_state["setTemp"],
+            self._device_state.get("setTemp", 20),
         )
-        self._device.add_control_message_callback("Set temperature", self._on_message_temperature)
-
-        self._device.create_control(
-            "Current mode",
-            wbmqtt.ControlMeta(
-                title="Текущий режим работы",
-                title_en="Current mode",
-                control_type="text",
-                order=4,
-                read_only=True,
-            ),
-            self._device_state["mode"],
+        self._device.add_control_message_callback(
+            "Set temperature", self._on_message_temperature
         )
 
-        self._device.create_control(
-            "Load",
-            wbmqtt.ControlMeta(title="Нагрев", title_en="Load", control_type="text", order=5, read_only=True),
-            self._device_state["load"],
-        )
-
+    def _create_mode_controls(self) -> None:
         for order_number, mode_title in enumerate(config.MODE_CODES.values(), 6):
             self._device.create_control(
                 mode_title,
                 wbmqtt.ControlMeta(
-                    title=f"""Установить режим работы "{config.MODE_NAMES_TRANSLATE[mode_title]}" """,
-                    title_en=f"""Set mode "{mode_title}" """,
+                    title=f'Установить режим работы "{config.MODE_NAMES_TRANSLATE.get(mode_title, mode_title)}"',
+                    title_en=f'Set mode "{mode_title}"',
                     control_type="pushbutton",
                     order=order_number,
                     read_only=False,
@@ -117,6 +111,7 @@ class MQTTDevice:
             )
             self._device.add_control_message_callback(mode_title, self._on_message_mode)
 
+    def _create_readonly_controls(self) -> None:
         for order_number, read_only_temp in enumerate(
             self._device_state["read_only_temp"], 7 + len(config.MODE_CODES)
         ):
@@ -132,19 +127,21 @@ class MQTTDevice:
                 self._device_state["read_only_temp"][read_only_temp],
             )
 
-        logger.info("%s device created", self._root_topic)
-
-    def update(self, control_name, value):
-        self._device.set_control_value(control_name, value)
-        logger.debug("%s %s control updated with value %s", self._welrok_device.id, control_name, value)
-
-    def set_readonly(self, control_name, value):
-        try:
-            self._device.set_control_read_only(control_name, True)
+    def update(self, control_name: str, value: str) -> None:
+        if self._device:
             self._device.set_control_value(control_name, value)
+            logger.debug(
+                f"{self._welrok_device.id} {control_name} control updated with value {value}"
+            )
+
+    def set_readonly(self, control_name: str, value: str) -> None:
+        try:
+            if self._device:
+                self._device.set_control_read_only(control_name, True)
+                self._device.set_control_value(control_name, value)
         except Exception:
             logger.exception(
-                "Failed to set readonly/ value for %s on %s", control_name, self._welrok_device.id
+                f"Failed to set readonly/value for {control_name} on {self._welrok_device.id}"
             )
 
     def set_error_state(self, error: bool):
@@ -152,9 +149,10 @@ class MQTTDevice:
             if control_name != "IP address":
                 self._device.set_control_error(control_name, "r" if error else "")
 
-    def remove(self):
-        self._device.remove_device()
-        logger.info("%s device deleted", self._root_topic)
+    def remove(self) -> None:
+        if self._device:
+            self._device.remove_device()
+            logger.info(f"{self._root_topic} device deleted")
 
     def _done(self, f):
         try:
@@ -180,9 +178,13 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring power command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_power(power), self._loop)
+            fut = asyncio.run_coroutine_threadsafe(
+                self._welrok_device.set_power(power), self._loop
+            )
             fut.add_done_callback(self._done)
-            logger.info("Welrok %s power state changed to %s", self._welrok_device.sn, power)
+            logger.info(
+                "Welrok %s power state changed to %s", self._welrok_device.sn, power
+            )
         except RuntimeError:
             logger.warning("Cannot schedule power command, event loop closed")
 
@@ -197,7 +199,9 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring temperature command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_temp(temp), self._loop)
+            fut = asyncio.run_coroutine_threadsafe(
+                self._welrok_device.set_temp(temp), self._loop
+            )
             fut.add_done_callback(self._done)
             logger.info("Set temperature %s on Welrok %s", temp, self._welrok_device.sn)
         except RuntimeError:
@@ -221,7 +225,9 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring bright command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_bright(bright), self._loop)
+            fut = asyncio.run_coroutine_threadsafe(
+                self._welrok_device.set_bright(bright), self._loop
+            )
             fut.add_done_callback(self._done)
             logger.info("Set bright %s on Welrok %s", bright, self._welrok_device.sn)
         except RuntimeError:
@@ -238,8 +244,14 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring mode command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_mode(mode_payload), self._loop)
+            fut = asyncio.run_coroutine_threadsafe(
+                self._welrok_device.set_mode(mode_payload), self._loop
+            )
             fut.add_done_callback(self._done)
-            logger.info("Welrok %s mode state changed to %s", self._welrok_device.sn, mode_payload)
+            logger.info(
+                "Welrok %s mode state changed to %s",
+                self._welrok_device.sn,
+                mode_payload,
+            )
         except RuntimeError:
             logger.warning("Cannot schedule mode command, event loop closed")

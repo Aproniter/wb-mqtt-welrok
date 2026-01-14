@@ -6,7 +6,12 @@ SCHEMA_FILEPATH = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-welrok.schema.json"
 data_topics = ["floorTemp", "airTemp", "protTemp", "setTemp", "powerOff", "load"]
 settings_topics = ["setTemp", "bright", "powerOff", "mode"]
 
-TEMP_CODES = {0: "Overheat temperature", 1: "Floor temperature", 2: "Air temperature", 7: "MK temperature"}
+TEMP_CODES = {
+    0: "Overheat temperature",
+    1: "Floor temperature",
+    2: "Air temperature",
+    7: "MK temperature",
+}
 
 TOPIC_NAMES_TRANSLATE = {
     "Overheat temperature": "Внутренняя температура устройства",

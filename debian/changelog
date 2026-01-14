@@ -1,3 +1,9 @@
+wb-welrok (0.0.19) RELEASED; urgency=low
+
+  * Refactoring
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Wen, 14 Jan 2026 20:55:43 +0300
+
 wb-welrok (0.0.17) RELEASED; urgency=low
 
   * Add tests and a README for them
