@@ -16,9 +16,7 @@ logger = logging.getLogger(__name__)
 
 def setup_logging(debug: bool = False) -> None:
     level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(
-        level=level, format="%(levelname)s: %(message)s (%(filename)s:%(lineno)d)"
-    )
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s (%(filename)s:%(lineno)d)")
     logger.setLevel(level)
 
 
@@ -62,9 +60,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         action="store_true",
         help=f"Make JSON for wb-mqtt-confed from {config.CONFIG_FILEPATH}",
     )
-    parser.add_argument(
-        "-c", "--config", type=str, default=config.CONFIG_FILEPATH, help="Config file"
-    )
+    parser.add_argument("-c", "--config", type=str, default=config.CONFIG_FILEPATH, help="Config file")
     args = parser.parse_args(argv[1:])
 
     if args.j:

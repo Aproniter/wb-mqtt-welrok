@@ -27,9 +27,7 @@ class MQTTDevice:
     def set_welrok_device(self, welrok_device):
         self._welrok_device = welrok_device
         self._root_topic = "/devices/" + self._welrok_device.title
-        logger.debug(
-            "Set Welrok device %s on %s topic", self._welrok_device.sn, self._root_topic
-        )
+        logger.debug("Set Welrok device %s on %s topic", self._welrok_device.sn, self._root_topic)
 
     def publicate(self) -> None:
         self._device = wbmqtt.Device(
@@ -92,9 +90,7 @@ class MQTTDevice:
             ),
             self._device_state.get("setTemp", 20),
         )
-        self._device.add_control_message_callback(
-            "Set temperature", self._on_message_temperature
-        )
+        self._device.add_control_message_callback("Set temperature", self._on_message_temperature)
 
     def _create_mode_controls(self) -> None:
         for order_number, mode_title in enumerate(config.MODE_CODES.values(), 6):
@@ -130,9 +126,7 @@ class MQTTDevice:
     def update(self, control_name: str, value: str) -> None:
         if self._device:
             self._device.set_control_value(control_name, value)
-            logger.debug(
-                f"{self._welrok_device.id} {control_name} control updated with value {value}"
-            )
+            logger.debug(f"{self._welrok_device.id} {control_name} control updated with value {value}")
 
     def set_readonly(self, control_name: str, value: str) -> None:
         try:
@@ -140,9 +134,7 @@ class MQTTDevice:
                 self._device.set_control_read_only(control_name, True)
                 self._device.set_control_value(control_name, value)
         except Exception:
-            logger.exception(
-                f"Failed to set readonly/value for {control_name} on {self._welrok_device.id}"
-            )
+            logger.exception(f"Failed to set readonly/value for {control_name} on {self._welrok_device.id}")
 
     def set_error_state(self, error: bool):
         for control_name in self._device.get_controls_list():
@@ -178,13 +170,9 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring power command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(
-                self._welrok_device.set_power(power), self._loop
-            )
+            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_power(power), self._loop)
             fut.add_done_callback(self._done)
-            logger.info(
-                "Welrok %s power state changed to %s", self._welrok_device.sn, power
-            )
+            logger.info("Welrok %s power state changed to %s", self._welrok_device.sn, power)
         except RuntimeError:
             logger.warning("Cannot schedule power command, event loop closed")
 
@@ -199,9 +187,7 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring temperature command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(
-                self._welrok_device.set_temp(temp), self._loop
-            )
+            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_temp(temp), self._loop)
             fut.add_done_callback(self._done)
             logger.info("Set temperature %s on Welrok %s", temp, self._welrok_device.sn)
         except RuntimeError:
@@ -225,9 +211,7 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring bright command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(
-                self._welrok_device.set_bright(bright), self._loop
-            )
+            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_bright(bright), self._loop)
             fut.add_done_callback(self._done)
             logger.info("Set bright %s on Welrok %s", bright, self._welrok_device.sn)
         except RuntimeError:
@@ -244,9 +228,7 @@ class MQTTDevice:
             if self._loop.is_closed():
                 logger.warning("Event loop closed, ignoring mode command")
                 return
-            fut = asyncio.run_coroutine_threadsafe(
-                self._welrok_device.set_mode(mode_payload), self._loop
-            )
+            fut = asyncio.run_coroutine_threadsafe(self._welrok_device.set_mode(mode_payload), self._loop)
             fut.add_done_callback(self._done)
             logger.info(
                 "Welrok %s mode state changed to %s",

@@ -35,9 +35,7 @@ class ControlState:  # pylint: disable=R0903
 
 
 class Device:
-    def __init__(
-        self, mqtt_client, device_mqtt_name: str, device_title: str, driver_name: str
-    ) -> None:
+    def __init__(self, mqtt_client, device_mqtt_name: str, device_title: str, driver_name: str) -> None:
         self._mqtt_client = mqtt_client
         self._base_topic = f"/devices/{device_mqtt_name}"
         self._controls = {}
@@ -50,9 +48,7 @@ class Device:
         for mqtt_control_name in self._controls.copy():
             self.remove_control(mqtt_control_name)
 
-    def create_control(
-        self, mqtt_control_name: str, meta: ControlMeta, value: str
-    ) -> None:
+    def create_control(self, mqtt_control_name: str, meta: ControlMeta, value: str) -> None:
         self._controls[mqtt_control_name] = ControlState(meta, None)
         self._publish_control_meta(mqtt_control_name, meta)
         self.set_control_value(mqtt_control_name, value)
@@ -61,16 +57,12 @@ class Device:
         if mqtt_control_name in self._controls:
             self._controls.pop(mqtt_control_name)
             self._publish(self._get_control_base_topic(mqtt_control_name), None)
-            self._publish(
-                self._get_control_base_topic(mqtt_control_name) + "/meta", None
-            )
+            self._publish(self._get_control_base_topic(mqtt_control_name) + "/meta", None)
 
     def get_controls_list(self) -> list[str]:
         return list(self._controls.keys())
 
-    def set_control_value(
-        self, mqtt_control_name: str, value: str, force=False
-    ) -> None:
+    def set_control_value(self, mqtt_control_name: str, value: str, force=False) -> None:
         if mqtt_control_name in self._controls:
             control = self._controls[mqtt_control_name]
             if control.value != value or force:
@@ -109,17 +101,13 @@ class Device:
         else:
             logging.debug("Can't set error of undeclared control %s", mqtt_control_name)
 
-    def add_control_message_callback(
-        self, mqtt_control_name: str, callback: callable
-    ) -> None:
+    def add_control_message_callback(self, mqtt_control_name: str, callback: callable) -> None:
         if mqtt_control_name in self._controls:
             control_base_topic = self._get_control_base_topic(mqtt_control_name)
             self._mqtt_client.subscribe(control_base_topic + "/on")
             self._mqtt_client.message_callback_add(control_base_topic + "/on", callback)
         else:
-            logging.debug(
-                "Can't add message callback to undeclared control %s", mqtt_control_name
-            )
+            logging.debug("Can't add message callback to undeclared control %s", mqtt_control_name)
 
     def _get_control_base_topic(self, mqtt_control_name: str) -> None:
         return f"{self._base_topic}/controls/{mqtt_control_name}"
@@ -147,9 +135,7 @@ class Device:
             meta_dict["error"] = meta.error
 
         meta_json = json.dumps(meta_dict)
-        self._publish(
-            self._get_control_base_topic(mqtt_control_name) + "/meta", meta_json
-        )
+        self._publish(self._get_control_base_topic(mqtt_control_name) + "/meta", meta_json)
 
     def _publish(self, topic: str, value: str) -> None:
         if value is None:

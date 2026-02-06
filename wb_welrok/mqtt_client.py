@@ -34,9 +34,7 @@ class MQTTClient(paho_socket.Client):
 
     @staticmethod
     def generate_client_id(client_id_prefix: str, suffix_length: int = 8) -> str:
-        random_suffix = "".join(
-            random.sample(string.ascii_letters + string.digits, suffix_length)
-        )
+        random_suffix = "".join(random.sample(string.ascii_letters + string.digits, suffix_length))
         return "%s-%s" % (client_id_prefix, random_suffix)
 
     async def _connect_async(self):
@@ -70,9 +68,7 @@ class MQTTClient(paho_socket.Client):
                     )
                     await asyncio.sleep(retry_delay)
                 else:
-                    logger.error(
-                        f"MQTT connection failed after {max_retries} attempts: {e}"
-                    )
+                    logger.error(f"MQTT connection failed after {max_retries} attempts: {e}")
                     raise
 
     def start(self) -> None:
@@ -99,7 +95,5 @@ class MQTTClient(paho_socket.Client):
         if self._is_threaded:
             self.loop_stop()
 
-    def setup_reconnect(
-        self, min_delay=MQTT_RECONNECT_MIN_DELAY, max_delay=MQTT_RECONNECT_MAX_DELAY
-    ):
+    def setup_reconnect(self, min_delay=MQTT_RECONNECT_MIN_DELAY, max_delay=MQTT_RECONNECT_MAX_DELAY):
         super().reconnect_delay_set(min_delay=min_delay, max_delay=max_delay)

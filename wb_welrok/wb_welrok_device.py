@@ -28,9 +28,7 @@ class WelrokDevice:
         self._mqtt_enable = properties.get("mqtt_enable", True)
         self._mqtt_server_uri = properties.get("mqtt_server_uri", DEFAULT_BROKER_URL)
         self._url = (
-            f"""http://{properties.get("device_ip")}/api.cgi"""
-            if properties.get("device_ip")
-            else None
+            f"""http://{properties.get("device_ip")}/api.cgi""" if properties.get("device_ip") else None
         )
         self._wb_mqtt_device = None
         self._mqtt = MQTTClient(self._title, self._mqtt_server_uri)
@@ -60,12 +58,8 @@ class WelrokDevice:
     async def _create_session(self):
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=HTTP_REREQUEST_TIMEOUT)
-            connector = aiohttp.TCPConnector(
-                limit_per_host=2, force_close=True, ssl=False
-            )
-            self._session = aiohttp.ClientSession(
-                timeout=timeout, connector=connector, trust_env=True
-            )
+            connector = aiohttp.TCPConnector(limit_per_host=2, force_close=True, ssl=False)
+            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True)
 
     async def close_session(self):
         if self._session and not self._session.closed:
@@ -100,9 +94,7 @@ class WelrokDevice:
             enable_cleanup_closed=True,
             ssl=False,  # Explicitly disable SSL for HTTP connections
         )
-        return aiohttp.ClientSession(
-            timeout=timeout, connector=connector, trust_env=True
-        )
+        return aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True)
 
     def parse_temperature_response(self, data: dict) -> dict:
         current_temp = {}
@@ -139,7 +131,7 @@ class WelrokDevice:
                     key = config.PARAMS_CODES[code]
                     val = par[2]
                     if key == "setTemp":
-                        state[key] = config.PARAMS_CHOISE[key](val) / 10
+                        state[key] = config.PARAMS_CHOISE[key](par)
                     else:
                         state[key] = config.PARAMS_CHOISE[key](val)
             logger.debug(f"Parsed device params state: {state}")
@@ -147,9 +139,7 @@ class WelrokDevice:
             logger.exception(f"Error parsing device params state: {e}")
         return state
 
-    async def get_device_state(
-        self, cmd: int, retries: int = 2, retry_delay: float = 0.5
-    ) -> Optional[dict]:
+    async def get_device_state(self, cmd: int, retries: int = 2, retry_delay: float = 0.5) -> Optional[dict]:
         await self._create_session()
         attempt = 0
         while attempt < retries:
@@ -157,7 +147,9 @@ class WelrokDevice:
             try:
                 async with self._session.post(self._url, json={"cmd": cmd}) as resp:
                     if resp.status == 200:
-                        return await resp.json()
+                        res = await resp.json()
+                        logger.debug(f"Device {self._id} get_device_state ({res})")
+                        return res
                     else:
                         logger.error(f"HTTP error {resp.status} for device {self._id}")
                         return None
@@ -169,20 +161,14 @@ class WelrokDevice:
 
     async def set_current_temp(self, current_temp: dict):
         for key, value in current_temp.items():
-            display_value = (
-                value if "open" in str(value).lower() else f"{value} \u00b0C"
-            )
-            logger.debug(
-                f"Welrok device {self._id} setting readonly temp {key} = {display_value}"
-            )
+            display_value = value if "open" in str(value).lower() else f"{value} \u00b0C"
+            logger.debug(f"Welrok device {self._id} setting readonly temp {key} = {display_value}")
             if self._wb_mqtt_device:
                 self._wb_mqtt_device.set_readonly(key, display_value)
 
     async def set_current_control_state(self, current_states: dict):
         for key, value in current_states.items():
-            logger.debug(
-                f"Welrok device {self._id} updating control {key} with value {value}"
-            )
+            logger.debug(f"Welrok device {self._id} updating control {key} with value {value}")
             if self._wb_mqtt_device:
                 self._wb_mqtt_device.update(key, str(value))
 
@@ -199,15 +185,11 @@ class WelrokDevice:
                 result, mid = client.subscribe(full, qos=1)
                 if result == 0:
                     self._subscribed_topics.add(full)
-                    logger.debug(
-                        "Subscribed to %s (mid=%s) for %s", full, mid, self._id
-                    )
+                    logger.debug("Subscribed to %s (mid=%s) for %s", full, mid, self._id)
                 else:
                     logger.warning("Subscribe returned %s for %s", result, full)
             except Exception:
-                logger.exception(
-                    "Failed to subscribe to %s for device %s", full, self._id
-                )
+                logger.exception("Failed to subscribe to %s for device %s", full, self._id)
 
     async def run(self):
         mqtt_started = False
@@ -225,33 +207,21 @@ class WelrokDevice:
                     )
                     if params_response is not None:
                         self._params_failures = 0
-                        device_controls_state = (
-                            self.parse_device_params_state(params_response) or {}
-                        )
+                        device_controls_state = self.parse_device_params_state(params_response) or {}
                         if self._wb_mqtt_device:
                             control_states = {
                                 "Power": int(device_controls_state.get("powerOff", 0)),
-                                "Bright": int(
-                                    device_controls_state.get("bright", 0) * 10
-                                ),
-                                "Set temperature": int(
-                                    device_controls_state.get("setTemp", 0)
-                                ),
-                                "Set temperature value": int(
-                                    device_controls_state.get("setTemp", 0)
-                                ),
+                                "Bright": int(device_controls_state.get("bright", 0) * 10),
+                                "Set temperature": int(device_controls_state.get("setTemp", 0)),
+                                "Set temperature value": int(device_controls_state.get("setTemp", 0)),
                             }
                             self._wb_mqtt_device.set_readonly(
                                 "Current mode",
-                                config.MODE_NAMES_TRANSLATE.get(
-                                    device_controls_state.get("mode", ""), ""
-                                ),
+                                config.MODE_NAMES_TRANSLATE.get(device_controls_state.get("mode", ""), ""),
                             )
                             await self.set_current_control_state(control_states)
                     else:
-                        self._params_failures = min(
-                            self._params_failures + 1, HTTP_FAILURE_THRESHOLD
-                        )
+                        self._params_failures = min(self._params_failures + 1, HTTP_FAILURE_THRESHOLD)
                         if self._params_failures == HTTP_FAILURE_THRESHOLD:
                             logger.warning(
                                 f"Device {self._id} params unavailable (failed {self._params_failures} times)"
@@ -267,16 +237,10 @@ class WelrokDevice:
                     if telemetry is not None:
                         self._telemetry_failures = 0
                         if self._wb_mqtt_device:
-                            self._wb_mqtt_device.set_readonly(
-                                "Load", self.get_load(telemetry)
-                            )
-                            await self.set_current_temp(
-                                self.parse_temperature_response(telemetry)
-                            )
+                            self._wb_mqtt_device.set_readonly("Load", self.get_load(telemetry))
+                            await self.set_current_temp(self.parse_temperature_response(telemetry))
                     else:
-                        self._telemetry_failures = min(
-                            self._telemetry_failures + 1, HTTP_FAILURE_THRESHOLD
-                        )
+                        self._telemetry_failures = min(self._telemetry_failures + 1, HTTP_FAILURE_THRESHOLD)
                         if self._telemetry_failures == HTTP_FAILURE_THRESHOLD:
                             logger.warning(
                                 f"Device {self._id} telemetry unavailable (failed {self._telemetry_failures} times)"
@@ -293,9 +257,7 @@ class WelrokDevice:
                     break
 
                 except Exception:
-                    logger.exception(
-                        f"Error in device {self._id} run loop, restarting after delay"
-                    )
+                    logger.exception(f"Error in device {self._id} run loop, restarting after delay")
                     try:
                         self._mqtt.stop()
                     except Exception:
@@ -312,9 +274,7 @@ class WelrokDevice:
                 try:
                     self._mqtt.stop()
                 except Exception:
-                    logger.exception(
-                        f"Error while stopping mqtt client for device {self._id}"
-                    )
+                    logger.exception(f"Error while stopping mqtt client for device {self._id}")
 
     def _on_mqtt_disconnect(self, client, userdata, rc):
         if rc != 0:
@@ -332,16 +292,12 @@ class WelrokDevice:
 
     def mqtt_data_callback(self, _, __, msg):
         if self._wb_mqtt_device is None:
-            logger.warning(
-                "MQTT callback received but wb_mqtt_device is None for %s", self._id
-            )
+            logger.warning("MQTT callback received but wb_mqtt_device is None for %s", self._id)
             return
 
         try:
             topic_name = [
-                config.INNER_TOPICS.get(i)
-                for i in msg.topic.split("/")
-                if config.INNER_TOPICS.get(i)
+                config.INNER_TOPICS.get(i) for i in msg.topic.split("/") if config.INNER_TOPICS.get(i)
             ]
             if len(topic_name) > 0:
                 msg = msg.payload.decode("utf-8")
@@ -369,20 +325,14 @@ class WelrokDevice:
         connector = aiohttp.TCPConnector(limit_per_host=2, force_close=True, ssl=False)
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=timeout, connector=connector, trust_env=True
-            ) as session:
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector, trust_env=True) as session:
                 async with session.post(self._url, json=data) as response:
                     if response.status == 200:
                         resp_json = await response.json()
-                        logging.debug(
-                            f"HTTP команда для {self._id} выполнена успешно: {resp_json}"
-                        )
+                        logging.debug(f"HTTP команда для {self._id} выполнена успешно: {resp_json}")
                         return resp_json
                     else:
-                        logging.error(
-                            f"HTTP ошибка {response.status} при отправке команды для {self._id}"
-                        )
+                        logging.error(f"HTTP ошибка {response.status} при отправке команды для {self._id}")
                         return None
         except asyncio.TimeoutError:
             logging.error(
@@ -391,9 +341,7 @@ class WelrokDevice:
         except aiohttp.ClientError as e:
             logging.error(f"HTTP ошибка клиента для устройства {self._id}: {e}")
         except Exception:
-            logging.exception(
-                f"Неожиданная ошибка при отправке HTTP команды для {self._id}"
-            )
+            logging.exception(f"Неожиданная ошибка при отправке HTTP команды для {self._id}")
         return None
 
     async def set_power(self, power: int):
@@ -406,9 +354,7 @@ class WelrokDevice:
                 )
                 logging.info(f"Power set to {power} on device {self._id} via MQTT")
             except asyncio.TimeoutError:
-                logging.warning(
-                    f"MQTT publish timeout on set_power for device {self._id}"
-                )
+                logging.warning(f"MQTT publish timeout on set_power for device {self._id}")
             except Exception:
                 logging.exception(f"Error publishing set_power for device {self._id}")
         else:
@@ -434,9 +380,7 @@ class WelrokDevice:
                 )
                 logging.info(f"Temperature set to {temp} on device {self._id} via MQTT")
             except asyncio.TimeoutError:
-                logging.warning(
-                    f"MQTT publish timeout on set_temp for device {self._id}"
-                )
+                logging.warning(f"MQTT publish timeout on set_temp for device {self._id}")
             except Exception:
                 logging.exception(f"Error publishing set_temp for device {self._id}")
         else:
@@ -454,9 +398,7 @@ class WelrokDevice:
                 if config.MODE_CODES_REVERSE.get(m) is not None
             ]
             if not mode_list:
-                logging.debug(
-                    f"No valid mode mapping for {new_mode} on device {self._id}"
-                )
+                logging.debug(f"No valid mode mapping for {new_mode} on device {self._id}")
                 return
             mode = str(mode_list[0])
             topic = self._mqtt_pub_base_topic + config.PARAMS_CODES[2]
@@ -468,13 +410,9 @@ class WelrokDevice:
                     )
                     logging.info(f"Mode set to {mode} on device {self._id} via MQTT")
                 except asyncio.TimeoutError:
-                    logging.warning(
-                        f"MQTT publish timeout on set_mode for device {self._id}"
-                    )
+                    logging.warning(f"MQTT publish timeout on set_mode for device {self._id}")
                 except Exception:
-                    logging.exception(
-                        f"Error publishing set_mode for device {self._id}"
-                    )
+                    logging.exception(f"Error publishing set_mode for device {self._id}")
             else:
                 command = {"sn": self._sn, "par": [[2, 2, mode]]}
                 await self.send_command_http(command)
@@ -492,13 +430,9 @@ class WelrokDevice:
                     asyncio.to_thread(self._mqtt.publish, topic, str(bright)),
                     timeout=MQTT_PUBLISH_TIMEOUT,
                 )
-                logging.info(
-                    f"Brightness set to {bright} on device {self._id} via MQTT"
-                )
+                logging.info(f"Brightness set to {bright} on device {self._id} via MQTT")
             except asyncio.TimeoutError:
-                logging.warning(
-                    f"MQTT publish timeout on set_bright for device {self._id}"
-                )
+                logging.warning(f"MQTT publish timeout on set_bright for device {self._id}")
             except Exception:
                 logging.exception(f"Error publishing set_bright for device {self._id}")
         else:
@@ -512,9 +446,7 @@ class WelrokDevice:
             try:
                 self._mqtt.message_callback_remove(topic)
             except Exception:
-                logger.exception(
-                    f"Failed to remove message callback for {topic} on device {self._id}"
-                )
+                logger.exception(f"Failed to remove message callback for {topic} on device {self._id}")
             try:
                 self._mqtt.unsubscribe(topic)
             except Exception:

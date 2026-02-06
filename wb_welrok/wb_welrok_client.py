@@ -15,9 +15,7 @@ class WelrokClient:
     def __init__(self, devices_config):
         self.devices_config = devices_config
         self.mqtt_client_running = False
-        self.mqtt_server_uri = (
-            devices_config[0].get("mqtt_server_uri") if devices_config else None
-        )
+        self.mqtt_server_uri = devices_config[0].get("mqtt_server_uri") if devices_config else None
         self.active_devices: Dict[str, Dict] = {}
         self.initializing: Set[str] = set()
         self.monitor_task: Optional[asyncio.Task] = None
@@ -47,9 +45,7 @@ class WelrokClient:
 
         # Error disconnect (rc != 0) - log and schedule graceful shutdown so
         # supervisor/systemd can handle restarts or repairs if needed.
-        logger.warning(
-            "MQTT client disconnected with error (rc=%s), scheduling shutdown", rc
-        )
+        logger.warning("MQTT client disconnected with error (rc=%s), scheduling shutdown", rc)
         if userdata is not None:
             try:
                 asyncio.run_coroutine_threadsafe(self._exit_gracefully(), userdata)
@@ -73,21 +69,12 @@ class WelrokClient:
             await self.remove_device(device_id)
 
             welrok_device = WelrokDevice(device_config)
-            params_states = await welrok_device.get_device_state(
-                config.CMD_CODES["params"]
-            )
-            device_controls_state = (
-                welrok_device.parse_device_params_state(params_states) or {}
-            )
-            telemetry = (
-                await welrok_device.get_device_state(config.CMD_CODES["telemetry"])
-                or {}
-            )
+            params_states = await welrok_device.get_device_state(config.CMD_CODES["params"])
+            device_controls_state = welrok_device.parse_device_params_state(params_states) or {}
+            telemetry = await welrok_device.get_device_state(config.CMD_CODES["telemetry"]) or {}
             device_controls_state.update(
                 {
-                    "read_only_temp": welrok_device.parse_temperature_response(
-                        telemetry
-                    ),
+                    "read_only_temp": welrok_device.parse_temperature_response(telemetry),
                     "load": welrok_device.get_load(telemetry),
                 }
             )
@@ -130,16 +117,11 @@ class WelrokClient:
     async def monitor_devices(self):
         while True:
             try:
-                configured_ids = {
-                    d.get("device_id")
-                    for d in self.devices_config
-                    if d.get("device_id")
-                }
+                configured_ids = {d.get("device_id") for d in self.devices_config if d.get("device_id")}
                 for device_config in self.devices_config:
                     device_id = device_config.get("device_id")
                     if device_id and (
-                        device_id not in self.active_devices
-                        or self.active_devices[device_id]["task"].done()
+                        device_id not in self.active_devices or self.active_devices[device_id]["task"].done()
                     ):
                         asyncio.create_task(self.init_device(device_config))
 
@@ -159,9 +141,7 @@ class WelrokClient:
         loop.add_signal_handler(signal.SIGTERM, self._on_term_signal)
         loop.add_signal_handler(signal.SIGINT, self._on_term_signal)
 
-        self.mqtt_client = MQTTClient(
-            "welrok", self.mqtt_server_uri or DEFAULT_BROKER_URL
-        )
+        self.mqtt_client = MQTTClient("welrok", self.mqtt_server_uri or DEFAULT_BROKER_URL)
         self.mqtt_client.user_data_set(loop)
         self.mqtt_client.on_connect = self._on_mqtt_client_connect
         self.mqtt_client.on_disconnect = self._on_mqtt_client_disconnect
