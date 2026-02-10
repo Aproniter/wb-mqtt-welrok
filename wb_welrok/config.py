@@ -6,7 +6,12 @@ SCHEMA_FILEPATH = "/usr/share/wb-mqtt-confed/schemas/wb-mqtt-welrok.schema.json"
 data_topics = ["floorTemp", "airTemp", "protTemp", "setTemp", "powerOff", "load"]
 settings_topics = ["setTemp", "bright", "powerOff", "mode"]
 
-TEMP_CODES = {0: "Overheat temperature", 1: "Floor temperature", 2: "Air temperature", 7: "MK temperature"}
+TEMP_CODES = {
+    0: "Overheat temperature",
+    1: "Floor temperature",
+    2: "Air temperature",
+    7: "MK temperature",
+}
 
 TOPIC_NAMES_TRANSLATE = {
     "Overheat temperature": "Внутренняя температура устройства",
@@ -40,10 +45,17 @@ MODE_CODES_REVERSE = {
     "Manual": 1,
 }
 
+
+def set_temp_param_parse(parameter):
+    if int(parameter[1]) == 3:
+        return round(float(parameter[2]) / 10, 2)
+    return round(float(parameter[2]), 2)
+
+
 PARAMS_CHOISE: dict[str, Callable] = {
     "powerOff": lambda x: "1" if x == "0" else "0",
     "bright": lambda x: round(float(x), 2),
-    "setTemp": lambda x: round(float(x), 2),
+    "setTemp": set_temp_param_parse,
     "mode": lambda x: MODE_CODES[int(x)],
     "load": lambda x: "Выключено" if x == "0" else "Включено",
 }
