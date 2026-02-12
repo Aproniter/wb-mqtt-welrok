@@ -1,3 +1,13 @@
+wb-welrok (0.1.1) RELEASED; urgency=low
+
+  * Refactoring
+  * Changing class structure
+  * Fix for mode change
+  * Adding information controls
+  * Changing the structure of the initial config
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Fri, 12 Feb 2026 19:43:17 +0300
+
 wb-welrok (0.0.20) RELEASED; urgency=low
 
   * Refactoring

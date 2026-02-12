@@ -78,10 +78,8 @@ class Device:
                 control.meta.read_only = read_only
                 self._publish_control_meta(mqtt_control_name, control.meta)
         else:
-            logging.debug(
-                "Can't set readonly property of undeclared control %s",
-                mqtt_control_name,
-            )
+            logging.debug("self._controls = %s", self._controls)
+            logging.debug("Can't set readonly property of undeclared control %s", mqtt_control_name)
 
     def set_control_title(self, mqtt_control_name: str, title: str) -> None:
         if mqtt_control_name in self._controls:
@@ -113,11 +111,7 @@ class Device:
         return f"{self._base_topic}/controls/{mqtt_control_name}"
 
     def _publish_control_meta(self, mqtt_control_name: str, meta: ControlMeta) -> None:
-        meta_dict = {
-            "type": meta.control_type,
-            "readonly": bool(meta.read_only),
-            "title": {},
-        }
+        meta_dict = {"type": meta.control_type, "readonly": bool(meta.read_only), "title": {}}
         if meta.title is not None:
             meta_dict["title"].update({"ru": meta.title})
         if meta.title_en is not None:
