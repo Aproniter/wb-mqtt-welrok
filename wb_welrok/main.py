@@ -16,10 +16,12 @@ from wb_welrok.device_config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
+
 def setup_logging(debug: bool = False) -> None:
     level = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s (%(filename)s:%(lineno)d)")
-    logger.setLevel(level) 
+    logger.setLevel(level)
+
 
 def to_json(config_filepath: str) -> dict:
     with open(config_filepath, "r", encoding="utf-8") as config_file:
@@ -32,7 +34,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         argv = sys.argv
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-j", action="store_true", help=f"Make JSON for wb-mqtt-confed from {config.CONFIG_FILEPATH}")
+    parser.add_argument(
+        "-j", action="store_true", help=f"Make JSON for wb-mqtt-confed from {config.CONFIG_FILEPATH}"
+    )
     parser.add_argument("-c", "--config", type=str, default=config.CONFIG_FILEPATH, help="Config file")
     args = parser.parse_args(argv[1:])
 
@@ -72,7 +76,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         logger.info("Welrok service stopped")
 
     return result
-
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from wb_welrok.config import DEFAULT_BROKER_URL
 
 logger = logging.getLogger(__name__)
 
+
 class ConfigManager:
 
     def __init__(self, config_path: str, schema_path: str):
@@ -19,8 +20,9 @@ class ConfigManager:
 
     def load_and_validate(self):
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f_config, \
-                open(self.schema_path, "r", encoding="utf-8") as f_schema:
+            with open(self.config_path, "r", encoding="utf-8") as f_config, open(
+                self.schema_path, "r", encoding="utf-8"
+            ) as f_schema:
                 config_data = json.load(f_config)
                 schema = json.load(f_schema)
                 jsonschema.validate(config_data, schema)
@@ -34,9 +36,10 @@ class ConfigManager:
                 self.debug = config_data.get("debug", False)
             return self
         except (jsonschema.ValidationError, ValueError, FileNotFoundError) as e:
-            logger.error(f"{'*'*200}Config validation failed: {e}")
             return None
 
     def __repr__(self):
-        return (f"<ConfigManager devices={len(self.devices)} "
-                f"mqtt_server_uri={self.mqtt_server_uri} debug={self.debug}>")  
+        return (
+            f"<ConfigManager devices={len(self.devices)} "
+            f"mqtt_server_uri={self.mqtt_server_uri} debug={self.debug}>"
+        )

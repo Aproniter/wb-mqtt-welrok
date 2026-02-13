@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 
 import paho_socket
 
-
 MQTT_KEEPALIVE = 30  # seconds
 MQTT_RECONNECT_MIN_DELAY = 1  # seconds
 MQTT_RECONNECT_MAX_DELAY = 120  # seconds
@@ -16,7 +15,7 @@ MQTT_RECONNECT_MAX_DELAY = 120  # seconds
 RETRY_DELAY = 2  # seconds
 MAX_RETRIES = 5
 
-logger = logging.getLogger(__name__) 
+logger = logging.getLogger(__name__)
 
 
 class MQTTClient(paho_socket.Client):
@@ -31,7 +30,7 @@ class MQTTClient(paho_socket.Client):
     def generate_client_id(client_id_prefix: str, suffix_length: int = 8) -> str:
         random_suffix = "".join(random.sample(string.ascii_letters + string.digits, suffix_length))
         return "%s-%s" % (client_id_prefix, random_suffix)
-    
+
     async def _connect_async(self):
         max_retries = MAX_RETRIES
         retry_delay = RETRY_DELAY
@@ -39,26 +38,35 @@ class MQTTClient(paho_socket.Client):
 
         for attempt in range(max_retries):
             try:
-                logger.info(f"Attempting MQTT connection to {self._broker_url.hostname}:{self._broker_url.port} (attempt {attempt + 1})")
+                logger.info(
+                    "Attempting MQTT connection to %s:%s (attempt %s)",
+                    self._broker_url.hostname,
+                    self._broker_url.port,
+                    attempt + 1,
+                )
                 if scheme == "unix":
                     self.sock_connect(self._broker_url.path)
                     logger.info("MQTT connected via UNIX socket")
-                elif scheme in ["mqtt-tcp", "tcp", "ws"]:
-                    logger.info(f"MQTT connected via {self._broker_url}")
+                elif scheme in ["mqtt-tcp", "tcp", "ws"] and self._broker_url.port:
+                    logger.info("MQTT connected via %s", self._broker_url)
                     self.connect(self._broker_url.hostname, self._broker_url.port, keepalive=MQTT_KEEPALIVE)
-                    logger.info(f"MQTT connected via {scheme.upper()}")
+                    logger.info("MQTT connected via %s", scheme.upper())
                 else:
                     raise ValueError(f"Unknown MQTT URL scheme: {scheme}")
                 logger.info("MQTT connection successful")
                 return
             except Exception as e:
                 if attempt < max_retries - 1:
-                    logger.warning(f"MQTT connection attempt {attempt + 1} failed: {e}. Retrying in {retry_delay}s...")
+                    logger.warning(
+                        "MQTT connection attempt %s failed: %s. Retrying in %ss...",
+                        attempt + 1,
+                        e,
+                        retry_delay,
+                    )
                     await asyncio.sleep(retry_delay)
                 else:
-                    logger.error(f"MQTT connection failed after {max_retries} attempts: {e}")
-                    raise 
-
+                    logger.error("MQTT connection failed after %s attempts: %s", max_retries, e)
+                    raise
 
     def start(self) -> None:
         scheme = self._broker_url.scheme
@@ -85,4 +93,4 @@ class MQTTClient(paho_socket.Client):
             self.loop_stop()
 
     def setup_reconnect(self, min_delay=MQTT_RECONNECT_MIN_DELAY, max_delay=MQTT_RECONNECT_MAX_DELAY):
-        super().reconnect_delay_set(min_delay=min_delay, max_delay=max_delay) 
+        super().reconnect_delay_set(min_delay=min_delay, max_delay=max_delay)

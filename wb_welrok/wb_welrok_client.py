@@ -11,9 +11,11 @@ from wb_welrok.wb_welrok_device import WelrokDevice
 
 logger = logging.getLogger(__name__)
 
+
 class DeviceEntry(TypedDict):
     task: asyncio.Task
     welrok: WelrokDevice
+
 
 class WelrokClient:
     def __init__(self, devices_config):
@@ -23,7 +25,6 @@ class WelrokClient:
         self.active_devices: Dict[str, DeviceEntry] = {}
         self.initializing: Set[str] = set()
         self.monitor_task: Optional[asyncio.Task] = None
-
 
     async def _exit_gracefully(self):
         logger.info("Cancelling all device tasks")
@@ -74,12 +75,12 @@ class WelrokClient:
             self.active_devices[device_id] = {"task": task, "welrok": welrok_device}
 
             def done_callback(t):
-                logger.info(f"Device task {device_id} finished")
+                logger.info("Device task %s finished", device_id)
                 asyncio.create_task(self.remove_device(device_id))
 
             task.add_done_callback(done_callback)
         except Exception:
-            logger.exception(f"Failed to initialize device {device_id}")
+            logger.exception("Failed to initialize device %s", device_id)
         finally:
             self.initializing.discard(device_id)
 
@@ -91,7 +92,7 @@ class WelrokClient:
                 await entry["welrok"].close_session()
                 entry["task"].cancel()
             except Exception:
-                logger.exception(f"Error removing mqtt device {device_id}")
+                logger.exception("Error removing mqtt device %s", device_id)
 
     async def monitor_devices(self):
         while True:
@@ -99,7 +100,9 @@ class WelrokClient:
                 configured_ids = {d.device_id for d in self.devices_config.devices}
                 for device_config in self.devices_config.devices:
                     device_id = device_config.get("device_id")
-                    if device_id and (device_id not in self.active_devices or self.active_devices[device_id]["task"].done()):
+                    if device_id and (
+                        device_id not in self.active_devices or self.active_devices[device_id]["task"].done()
+                    ):
                         asyncio.create_task(self.init_device(device_config))
 
                 for dev_id in list(self.active_devices.keys()):
@@ -142,4 +145,3 @@ class WelrokClient:
                 await self.remove_device(dev_id)
             self.mqtt_client.stop()
             logger.info("MQTT client stopped")
-

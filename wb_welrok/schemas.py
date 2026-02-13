@@ -13,5 +13,12 @@ class DeviceConfig:
     serial_number: str = ""
     mqtt_enable: bool = False
 
-    def get(self, field_name: str, def_val: Any = None):                                                                                                                                     
-         return getattr(self, field_name, def_val)
+    def get(self, field_name: str, def_val: Any = None):
+        return getattr(self, field_name, def_val)
+
+
+@dataclass
+class DeviceParam:
+    code: int
+    data_type: int
+    value: str

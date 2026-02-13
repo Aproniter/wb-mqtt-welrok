@@ -1,3 +1,12 @@
+wb-welrok (0.1.2) RELEASED; urgency=low
+
+  * Refactoring
+  * Data parsing changed
+  * Data formatting has been changed
+  * Changed definition of constants
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Fri, 13 Feb 2026 18:15:42 +0300
+
 wb-welrok (0.1.1) RELEASED; urgency=low
 
   * Refactoring
