@@ -1,3 +1,9 @@
+wb-welrok (0.1.3) RELEASED; urgency=low
+
+  * Fix mistake in initial wb-welrok.conf file
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Thu, 10 Mar 2026 14:28:05 +0300
+
 wb-welrok (0.1.2) RELEASED; urgency=low
 
   * Refactoring
