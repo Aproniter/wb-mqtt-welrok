@@ -16,7 +16,12 @@ HTTP_REQUEST_TIMEOUT = 20
 data_topics = ["floorTemp", "airTemp", "protTemp", "setTemp", "powerOff", "load"]
 settings_topics = ["setTemp", "bright", "powerOff", "mode"]
 
-TEMP_CODES = {0: "Overheat temperature", 1: "Floor temperature", 2: "Air temperature", 7: "MK temperature"}
+TEMP_CODES = {
+    0: "Overheat temperature",
+    1: "Floor temperature",
+    2: "Air temperature",
+    7: "MK temperature",
+}
 
 TOPIC_NAMES_TRANSLATE = {
     "Overheat temperature": "Внутренняя температура устройства",
