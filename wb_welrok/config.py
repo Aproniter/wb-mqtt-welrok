@@ -49,8 +49,17 @@ class TemperatureCode(Enum):
 
 
 class FaultCode(Enum):
-    OPEN_CIRCUIT = "f.3"
-    SHORT_CIRCUIT = "f.4"
+    OVERHEAT = ("f.9", "Overheat temperature", "перегрев устройства")
+    OVERHEAT_SENSOR = ("f.12", "Overheat temperature", "ошибка датчика перегрева")
+    FLOOR_OPEN_CIRCUIT = ("f.3", "Floor temperature", "обрыв датчика пола")
+    FLOOR_SHORT_CIRCUIT = ("f.4", "Floor temperature", "КЗ датчика пола")
+    AIR_SENSOR_LOSS = ("f.5", "Air temperature", "потеря датчика воздуха")
+    AIR_SENSOR_BATTERY = ("f.23", "Air temperature", "низкий заряд батареи датчика воздуха")
+
+    def __init__(self, code: str, control_title: str, error_text: str):
+        self.code = code
+        self.control_title = control_title
+        self.error_text = error_text
 
 
 class StateCode(Enum):
@@ -85,6 +94,12 @@ MODE_CODES_REVERSE = {
 }
 
 
+# Если True: при изменении температуры в режиме расписания (Auto) режим не переключается
+# в ручной — температура задаётся для текущего режима как есть.
+# Если False (по умолчанию): при любом изменении температуры устройство переходит в ручной режим.
+SET_TEMP_KEEP_SCHEDULE_MODE = False
+
+
 class DefaultParseValue(Enum):
     TEMP_DIV = 1
     UPPER_LIMIT_TEMP = 45
@@ -95,11 +110,17 @@ class DefaultParseValue(Enum):
 
 class ParamCode(Enum):
     POWER = 125
+    MANUAL_AIR_TEMP = 4
+    MANUAL_FLOOR_TEMP = 5
     TEMP = 31
+    TEMP_SCHEDULE = 29
     MODE = 2
     BRIGHT = 23
+    CONTROL_TYPE = 3
     UPPER_LIMIT = 26
     LOWER_LIMIT = 27
+    UPPER_AIR_LIMIT = 33
+    LOWER_AIR_LIMIT = 34
 
 
 PARAMS_CODES = {

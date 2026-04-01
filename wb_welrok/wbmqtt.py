@@ -99,6 +99,16 @@ class Device:
         else:
             logging.debug("Can't set error of undeclared control %s", mqtt_control_name)
 
+    def set_control_limits(self, mqtt_control_name: str, min_value: int, max_value: int) -> None:
+        if mqtt_control_name in self._controls:
+            control = self._controls[mqtt_control_name]
+            if control.meta.min != min_value or control.meta.max != max_value:
+                control.meta.min = min_value
+                control.meta.max = max_value
+                self._publish_control_meta(mqtt_control_name, control.meta)
+        else:
+            logging.debug("Can't set limits of undeclared control %s", mqtt_control_name)
+
     def add_control_message_callback(self, mqtt_control_name: str, callback: callable) -> None:
         if mqtt_control_name in self._controls:
             control_base_topic = self._get_control_base_topic(mqtt_control_name)

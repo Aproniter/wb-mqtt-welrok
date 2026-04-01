@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 import traceback
 from typing import Any, Optional, TYPE_CHECKING, Callable, Dict, Tuple
 
@@ -53,13 +54,19 @@ class WelrokDataParser:
     def __init__(self):
         self.msg_processor = MsgProcessor(self.temp_formater)
         self._temp_div = config.DefaultParseValue.TEMP_DIV.value
+        self._temp_data_type = config.HttpCode.TEMP.value
         self.upper_limit_temp = config.DefaultParseValue.UPPER_LIMIT_TEMP.value
         self.lower_limit_temp = config.DefaultParseValue.LOWER_LIMIT_TEMP.value
+        self.upper_limit_air_temp = config.DefaultParseValue.UPPER_LIMIT_TEMP.value
+        self.lower_limit_air_temp = config.DefaultParseValue.LOWER_LIMIT_TEMP.value
         self.upper_limit_bright = config.DefaultParseValue.UPPER_LIMIT_BRIGHT.value
         self.lower_limit_bright = config.DefaultParseValue.LOWER_LIMIT_BRIGHT.value
 
     def temp_formater(self, temp):
-        return f"{round(float(temp), 2)} \u00b0C"
+        try:
+            return f"{round(float(temp), 2)} \u00b0C"
+        except (ValueError, TypeError):
+            return str(temp)
 
     def parse_power_off(self, par: DeviceParam):
         return "1" if par.value == "0" else "0"
@@ -69,13 +76,29 @@ class WelrokDataParser:
 
     def parse_set_temp(self, par: DeviceParam):
         self._temp_div = 10 if par.data_type == 3 else 1
+        self._temp_data_type = par.data_type
         return round(float(par.value) / self._temp_div, 2)
 
     def parse_limit(self, par: DeviceParam):
+        temp_div = 10 if par.data_type == 3 else 1
+        scaled = int(round(float(par.value) / temp_div, 0))
         if par.code == config.ParamCode.UPPER_LIMIT.value:
             self._upper_limit = par.value
+            self.upper_limit_temp = scaled
         if par.code == config.ParamCode.LOWER_LIMIT.value:
             self._lower_limit = par.value
+            self.lower_limit_temp = scaled
+        return None
+
+    def parse_control_type(self, par: DeviceParam):
+        return str(int(par.value))
+
+    def parse_air_limit(self, par: DeviceParam):
+        scaled = int(round(float(par.value), 0))
+        if par.code == config.ParamCode.UPPER_AIR_LIMIT.value:
+            self.upper_limit_air_temp = scaled
+        elif par.code == config.ParamCode.LOWER_AIR_LIMIT.value:
+            self.lower_limit_air_temp = scaled
         return None
 
     def parse_mode(self, par: DeviceParam):
@@ -87,8 +110,11 @@ class WelrokDataParser:
             config.ParamCode.BRIGHT.value: (self.parse_bright, "bright"),
             config.ParamCode.TEMP.value: (self.parse_set_temp, "setTemp"),
             config.ParamCode.MODE.value: (self.parse_mode, "mode"),
+            config.ParamCode.CONTROL_TYPE.value: (self.parse_control_type, "controlType"),
             config.ParamCode.UPPER_LIMIT.value: (self.parse_limit, ""),
             config.ParamCode.LOWER_LIMIT.value: (self.parse_limit, ""),
+            config.ParamCode.UPPER_AIR_LIMIT.value: (self.parse_air_limit, ""),
+            config.ParamCode.LOWER_AIR_LIMIT.value: (self.parse_air_limit, ""),
         }
 
     def get_inner_topic(self, key):
@@ -118,11 +144,24 @@ class WelrokDataParser:
                     temp = round(val / code.divisor, code.precision)
                     current_temp[code.title] = str(temp)
             for fault_code in config.FaultCode:
-                if data.get(fault_code.value) == "1":
-                    current_temp[config.TemperatureCode.FLOOR_TEMP.title] = "КЗ или обрыв цепи"
+                if fault_code == config.FaultCode.AIR_SENSOR_BATTERY:
+                    continue
+                if data.get(fault_code.code) == "1":
+                    current_temp[fault_code.control_title] = fault_code.error_text
         except Exception as e:
             logger.exception("Error parsing temperature response: %s", e)
         return current_temp
+
+    def parse_sensor_errors(self, data: dict) -> dict:
+        errors = {}
+        for fault_code in config.FaultCode:
+            title = fault_code.control_title
+            if data.get(fault_code.code) == "1":
+                if not errors.get(title):
+                    errors[title] = fault_code.error_text
+            elif title not in errors:
+                errors[title] = ""
+        return errors
 
     def parse_device_params_state(self, data: dict) -> dict:
         state = {}
@@ -150,13 +189,7 @@ class WelrokDataParser:
 
     def format_bright(self, bright):
         if bright > 0:
-            if bright < 10:
-                bright = 1
-            elif bright == 100:
-                bright = 9
-            else:
-                bright = bright // 10
-            return bright
+            return max(1, bright // 10)
         return 0
 
 
@@ -182,12 +215,19 @@ class WelrokDevice:
         self._bright_check = (
             lambda x: self._data_parser.lower_limit_bright <= x <= self._data_parser.upper_limit_bright
         )
-        self._temp_check = (
-            lambda x: self._data_parser.lower_limit_temp <= x <= self._data_parser.upper_limit_temp
+        self._temp_check = lambda x: (
+            self._data_parser.lower_limit_air_temp <= x <= self._data_parser.upper_limit_air_temp
+            if self._control_type in (1, 2)
+            else self._data_parser.lower_limit_temp <= x <= self._data_parser.upper_limit_temp
         )
         self._temp_div_coef = 1
+        self._legacy_bright = False
+        self._pending_bright_detection = False
+        self._current_mode: Optional[str] = None
+        self._control_type: Optional[int] = None
+        self._pending_set_temp: Optional[int] = None
+        self._pending_set_temp_expire: float = 0.0
 
-        # Counters for consecutive failures (used to reduce noisy warnings)
         self._params_failures = 0
         self._telemetry_failures = 0
         self.__session: Optional[aiohttp.ClientSession] = None
@@ -262,10 +302,17 @@ class WelrokDevice:
 
     async def set_current_temp(self, current_temp: dict):
         for key, value in current_temp.items():
-            display_value = value if "open" in str(value).lower() else self._data_parser.temp_formater(value)
+            display_value = self._data_parser.temp_formater(value)
             logger.debug("Welrok device %s setting readonly temp %s = %s", self._id, key, display_value)
             if self._wb_mqtt_device:
                 self._wb_mqtt_device.set_readonly(key, display_value)
+
+    def _update_sensor_error_flags(self, telemetry: dict):
+        if not self._wb_mqtt_device:
+            return
+        sensor_errors = self._data_parser.parse_sensor_errors(telemetry)
+        for control_title, error_text in sensor_errors.items():
+            self._wb_mqtt_device.set_control_error_state(control_title, error_text)
 
     async def set_current_control_state(self, current_states: dict):
         for key, value in current_states.items():
@@ -293,15 +340,53 @@ class WelrokDevice:
                 logger.exception("Failed to subscribe to %s for device %s", full, self._id)
 
     def control_states(self, device_controls_state):
+        bright_raw = int(device_controls_state.get("bright", 0))
+        if self._legacy_bright and bright_raw == 9:
+            bright_ui = 100
+        else:
+            bright_ui = bright_raw * 10
+
+        set_temp = int(device_controls_state.get("setTemp", 0))
+        if self._pending_set_temp is not None:
+            if time.monotonic() > self._pending_set_temp_expire:
+                self._pending_set_temp = None
+            elif set_temp == self._pending_set_temp:
+                self._pending_set_temp = None
+            else:
+                set_temp = self._pending_set_temp
+
         return {
             "Power": int(device_controls_state.get("powerOff", 0)),
-            "Bright": int(device_controls_state.get("bright", 0) * 10),
-            "Set temperature": int(device_controls_state.get("setTemp", 0)),
+            "Bright": bright_ui,
+            "Set temperature": set_temp,
         }
 
     async def set_params(self, device_controls_state, telemetry):
+        if self._pending_bright_detection:
+            self._pending_bright_detection = False
+            bright_from_device = int(device_controls_state.get("bright", 0))
+            if bright_from_device == 9:
+                self._legacy_bright = True
+                self._data_parser.upper_limit_bright = 9
+                logger.info("Legacy brightness detected for device %s (max bright = 9)", self._id)
+        self._current_mode = device_controls_state.get("mode")
+        control_type_str = device_controls_state.get("controlType")
+        if control_type_str is not None:
+            self._control_type = int(control_type_str)
         await self.set_current_control_state(self.control_states(device_controls_state))
+        if self._wb_mqtt_device:
+            if self._control_type in (1, 2):
+                self._wb_mqtt_device.update_temp_limits(
+                    int(self._data_parser.lower_limit_air_temp),
+                    int(self._data_parser.upper_limit_air_temp),
+                )
+            else:
+                self._wb_mqtt_device.update_temp_limits(
+                    int(self._data_parser.lower_limit_temp),
+                    int(self._data_parser.upper_limit_temp),
+                )
         await self.set_current_temp(self._data_parser.parse_temperature_response(telemetry))
+        self._update_sensor_error_flags(telemetry)
         if self._wb_mqtt_device:
             self._wb_mqtt_device.set_readonly(
                 "Current mode",
@@ -407,6 +492,7 @@ class WelrokDevice:
             logger.exception("Error in mqtt_data_callback for device %s", self._id)
 
     async def send_command_http(self, data: dict):
+        logger.debug("send_command_http для %s , data: %s", self._id, data)
         if not self._url:
             logger.error("HTTP URL не задан для устройства %s", self._id)
             return None
@@ -448,9 +534,11 @@ class WelrokDevice:
                 for topic_suffix, value in mqtt_data:
                     topic = self._mqtt_pub_base_topic + topic_suffix
                     await self.send_command_mqtt(topic, value)
+                    await asyncio.sleep(1)
             elif http_params is not None:
                 command = {"sn": self._sn, "par": http_params}
                 await self.send_command_http(command)
+                await asyncio.sleep(1)
             else:
                 logger.error("Invalid command parameters for device %s", self._id)
         except Exception:
@@ -466,16 +554,36 @@ class WelrokDevice:
         if not self._temp_check(temp):
             logger.warning("Temperature %s out of range for device %s", temp, self._id)
             return
-        manual_mode = str(config.ModeCode.MANUAL.value)
-        mqtt_data_mode, http_params_mode = self._data_parser.format_command(
-            config.ParamCode.MODE, manual_mode, config.HttpCode.MODE
+
+        self._pending_set_temp = temp
+        self._pending_set_temp_expire = time.monotonic() + 30
+
+        need_mode_switch = self._current_mode != "Manual" and not (
+            config.SET_TEMP_KEEP_SCHEDULE_MODE and self._current_mode == "Auto"
         )
-        mqtt_data_temp, http_params_temp = self._data_parser.format_command(
-            config.ParamCode.TEMP, temp, config.HttpCode.TEMP
-        )
-        mqtt_data = mqtt_data_mode + mqtt_data_temp
-        http_params = http_params_mode + http_params_temp
-        await self.send_command(mqtt_data=mqtt_data, http_params=http_params)
+        if need_mode_switch:
+            mqtt_data_mode, http_params_mode = self._data_parser.format_command(
+                config.ParamCode.MODE, str(config.ModeCode.MANUAL.value), config.HttpCode.MODE
+            )
+            await self.send_command(mqtt_data=mqtt_data_mode, http_params=http_params_mode)
+
+        scaled_value = str(int(temp * self._data_parser._temp_div))
+        temp_data_type = self._data_parser._temp_data_type
+        mqtt_data_temp = [("setTemp", temp)]
+        in_schedule_mode = config.SET_TEMP_KEEP_SCHEDULE_MODE and self._current_mode == "Auto"
+        if in_schedule_mode:
+            http_params_temp = [
+                [config.ParamCode.TEMP_SCHEDULE.value, temp_data_type, scaled_value]
+            ]
+        elif self._control_type in (1, 2):
+            http_params_temp = [
+                [config.ParamCode.MANUAL_AIR_TEMP.value, temp_data_type, scaled_value]
+            ]
+        else:
+            http_params_temp = [
+                [config.ParamCode.MANUAL_FLOOR_TEMP.value, temp_data_type, scaled_value]
+            ]
+        await self.send_command(mqtt_data=mqtt_data_temp, http_params=http_params_temp)
 
     async def set_mode(self, new_mode: str, topic):
         if "Manual/on" in topic:
@@ -488,9 +596,13 @@ class WelrokDevice:
         await self.send_command(mqtt_data=mqtt_data, http_params=http_params)
 
     async def set_bright(self, bright: int):
+        if self._legacy_bright and bright > 9:
+            bright = 9
         if not self._bright_check(bright):
             logger.warning("Brightness %s out of range for device %s", bright, self._id)
             return
+        if bright == 10:
+            self._pending_bright_detection = True
         mqtt_data, http_params = self._data_parser.format_command(
             config.ParamCode.BRIGHT, bright, config.HttpCode.BRIGHT
         )

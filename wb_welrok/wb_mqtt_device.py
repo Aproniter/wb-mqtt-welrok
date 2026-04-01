@@ -85,7 +85,7 @@ class MQTTDevice:
         self.create_control("Power", power_value, self._on_message_power)
 
         bright_val = int(self._device_state.get("bright", 9))
-        start_bright = str(bright_val * 10) if bright_val != 9 else "100"
+        start_bright = str(min(bright_val * 10, 100))
         self.create_control("Bright", start_bright, self._on_message_bright)
 
         temp_value = self._device_state.get("setTemp", 20)
@@ -153,10 +153,18 @@ class MQTTDevice:
                 "Failed to set readonly/value for %s on %s", control_name, self._welrok_device.id
             )
 
+    def update_temp_limits(self, min_temp: int, max_temp: int) -> None:
+        if self._device:
+            self._device.set_control_limits("Set temperature", min_temp, max_temp)
+
     def set_error_state(self, error: bool):
         for control_name in self._device.get_controls_list():
             if control_name != "IP address":
                 self._device.set_control_error(control_name, "r" if error else "")
+
+    def set_control_error_state(self, control_name: str, error_text: str) -> None:
+        if self._device:
+            self._device.set_control_error(control_name, error_text)
 
     def remove(self) -> None:
         if self._device:
