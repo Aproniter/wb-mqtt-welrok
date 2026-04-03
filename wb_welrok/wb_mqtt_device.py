@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Callable, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from wb_welrok import config, wbmqtt
 from wb_welrok.mqtt_client import MQTTClient

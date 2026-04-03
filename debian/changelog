@@ -1,3 +1,9 @@
+wb-welrok (0.1.6) RELEASED; urgency=low
+
+  * Isort reformat
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Thu, 3 Apr 2026 11:36:58 +0300
+
 wb-welrok (0.1.5) RELEASED; urgency=low
 
   * Black reformat

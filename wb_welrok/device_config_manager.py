@@ -1,10 +1,11 @@
 import json
-import jsonschema
 import logging
 from typing import List
 
-from wb_welrok.schemas import DeviceConfig
+import jsonschema
+
 from wb_welrok.config import DEFAULT_BROKER_URL
+from wb_welrok.schemas import DeviceConfig
 
 logger = logging.getLogger(__name__)
 
