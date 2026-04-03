@@ -1,9 +1,7 @@
 import asyncio
 import logging
 import random
-import socket
 import string
-import time
 from urllib.parse import urlparse
 
 import paho_socket

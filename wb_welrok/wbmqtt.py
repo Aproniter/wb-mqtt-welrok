@@ -121,7 +121,11 @@ class Device:
         return f"{self._base_topic}/controls/{mqtt_control_name}"
 
     def _publish_control_meta(self, mqtt_control_name: str, meta: ControlMeta) -> None:
-        meta_dict = {"type": meta.control_type, "readonly": bool(meta.read_only), "title": {}}
+        meta_dict = {
+            "type": meta.control_type,
+            "readonly": bool(meta.read_only),
+            "title": {},
+        }
         if meta.title is not None:
             meta_dict["title"].update({"ru": meta.title})
         if meta.title_en is not None:

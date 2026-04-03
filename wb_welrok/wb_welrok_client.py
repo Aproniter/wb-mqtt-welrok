@@ -33,6 +33,10 @@ class WelrokClient:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
+    def _on_term_signal(self):
+        logger.info("Termination signal received, exiting")
+        asyncio.create_task(self._exit_gracefully())
+
     def _on_mqtt_client_connect(self, _, __, ___, rc):
         if rc == 0:
             self.mqtt_client_running = True

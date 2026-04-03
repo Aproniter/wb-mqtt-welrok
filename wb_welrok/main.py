@@ -7,10 +7,9 @@ import sys
 import traceback
 from typing import Optional
 
-import aiohttp
 import jsonschema
 
-from wb_welrok import config, wbmqtt
+from wb_welrok import config
 from wb_welrok.wb_welrok_client import WelrokClient
 from wb_welrok.device_config_manager import ConfigManager
 
