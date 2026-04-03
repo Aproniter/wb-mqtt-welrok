@@ -572,17 +572,11 @@ class WelrokDevice:
         mqtt_data_temp = [("setTemp", temp)]
         in_schedule_mode = config.SET_TEMP_KEEP_SCHEDULE_MODE and self._current_mode == "Auto"
         if in_schedule_mode:
-            http_params_temp = [
-                [config.ParamCode.TEMP_SCHEDULE.value, temp_data_type, scaled_value]
-            ]
+            http_params_temp = [[config.ParamCode.TEMP_SCHEDULE.value, temp_data_type, scaled_value]]
         elif self._control_type in (1, 2):
-            http_params_temp = [
-                [config.ParamCode.MANUAL_AIR_TEMP.value, temp_data_type, scaled_value]
-            ]
+            http_params_temp = [[config.ParamCode.MANUAL_AIR_TEMP.value, temp_data_type, scaled_value]]
         else:
-            http_params_temp = [
-                [config.ParamCode.MANUAL_FLOOR_TEMP.value, temp_data_type, scaled_value]
-            ]
+            http_params_temp = [[config.ParamCode.MANUAL_FLOOR_TEMP.value, temp_data_type, scaled_value]]
         await self.send_command(mqtt_data=mqtt_data_temp, http_params=http_params_temp)
 
     async def set_mode(self, new_mode: str, topic):

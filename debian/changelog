@@ -1,3 +1,9 @@
+wb-welrok (0.1.5) RELEASED; urgency=low
+
+  * Black reformat
+
+ -- Ivan Belokrylov <belokrylov.i@welrok.com>  Thu, 3 Apr 2026 09:04:02 +0300
+
 wb-welrok (0.1.4) RELEASED; urgency=low
 
   * Add air/floor control type detection via controlType (param 3)
